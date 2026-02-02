@@ -3,12 +3,12 @@ import About from "@/components/About";
 import Skills from "@/components/Skills";
 import Projects from "@/components/Projects";
 import Contact from "@/components/Contact";
-import AnimatedBackground from "@/components/AnimatedBackground";
+import Background3D from "@/components/Background3D";
 
 const Index = () => {
   return (
     <main className="min-h-screen relative">
-      <AnimatedBackground />
+      <Background3D />
       <Hero />
       <About />
       <Skills />
