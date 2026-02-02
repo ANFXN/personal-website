@@ -1,112 +1,200 @@
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, MeshDistortMaterial, Sphere, Stars } from "@react-three/drei";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
+import { Float, Sphere, Stars, Ring } from "@react-three/drei";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 
-const AnimatedSphere = ({ position, color, speed, distort, scale }: { 
+const Planet = ({ 
+  position, 
+  color, 
+  size, 
+  speed, 
+  rings,
+  emissive,
+  bumpScale = 0.02
+}: { 
   position: [number, number, number]; 
-  color: string; 
+  color: string;
+  size: number;
   speed: number;
-  distort: number;
-  scale: number;
+  rings?: boolean;
+  emissive?: string;
+  bumpScale?: number;
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  
+  // Create procedural texture for planet surface
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Create gradient base
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, new THREE.Color(color).multiplyScalar(0.6).getStyle());
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add noise/texture
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.random() * 256;
+      const y = Math.random() * 256;
+      const alpha = Math.random() * 0.3;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    
+    // Add horizontal bands (for gas giants look)
+    for (let i = 0; i < 8; i++) {
+      const y = (i / 8) * 256;
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.15})`;
+      ctx.fillRect(0, y, 256, 10 + Math.random() * 20);
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+  }, [color]);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += speed * 0.002;
+      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed * 0.3) * 0.3;
+    }
+    if (ringRef.current) {
+      ringRef.current.rotation.z = 0.5;
+      ringRef.current.rotation.x = 1.2;
+    }
+  });
+
+  return (
+    <Float speed={speed * 0.3} rotationIntensity={0.2} floatIntensity={0.5}>
+      <group position={position}>
+        <Sphere ref={meshRef} args={[size, 64, 64]}>
+          <meshStandardMaterial
+            map={texture}
+            roughness={0.8}
+            metalness={0.1}
+            emissive={emissive || color}
+            emissiveIntensity={0.05}
+          />
+        </Sphere>
+        {rings && (
+          <Ring ref={ringRef} args={[size * 1.4, size * 2, 64]}>
+            <meshStandardMaterial
+              color="#d4a574"
+              transparent
+              opacity={0.6}
+              side={THREE.DoubleSide}
+              roughness={0.9}
+            />
+          </Ring>
+        )}
+      </group>
+    </Float>
+  );
+};
+
+const Moon = ({ 
+  parentPosition, 
+  orbitRadius, 
+  size, 
+  speed, 
+  color 
+}: { 
+  parentPosition: [number, number, number];
+  orbitRadius: number;
+  size: number;
+  speed: number;
+  color: string;
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * speed * 0.2;
-      meshRef.current.rotation.y = state.clock.elapsedTime * speed * 0.3;
+      const angle = state.clock.elapsedTime * speed;
+      meshRef.current.position.x = parentPosition[0] + Math.cos(angle) * orbitRadius;
+      meshRef.current.position.z = parentPosition[2] + Math.sin(angle) * orbitRadius;
+      meshRef.current.position.y = parentPosition[1] + Math.sin(angle * 0.5) * 0.5;
+      meshRef.current.rotation.y += 0.01;
     }
   });
 
   return (
-    <Float speed={speed} rotationIntensity={0.5} floatIntensity={2}>
-      <Sphere ref={meshRef} args={[1, 64, 64]} position={position} scale={scale}>
-        <MeshDistortMaterial
-          color={color}
-          attach="material"
-          distort={distort}
-          speed={speed * 2}
-          roughness={0.2}
-          metalness={0.8}
-          transparent
-          opacity={0.6}
-        />
-      </Sphere>
-    </Float>
+    <Sphere ref={meshRef} args={[size, 32, 32]}>
+      <meshStandardMaterial
+        color={color}
+        roughness={0.9}
+        metalness={0.1}
+      />
+    </Sphere>
   );
 };
 
-const FloatingTorus = ({ position, color, speed }: { 
-  position: [number, number, number]; 
-  color: string; 
-  speed: number;
-}) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime * speed * 0.5;
-      meshRef.current.rotation.y = state.clock.elapsedTime * speed * 0.3;
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed) * 0.5;
-    }
-  });
-
-  return (
-    <Float speed={speed * 0.5} rotationIntensity={1} floatIntensity={1.5}>
-      <mesh ref={meshRef} position={position}>
-        <torusGeometry args={[1, 0.3, 16, 100]} />
-        <meshStandardMaterial
-          color={color}
-          roughness={0.3}
-          metalness={0.9}
-          transparent
-          opacity={0.5}
-        />
-      </mesh>
-    </Float>
-  );
-};
-
-const ParticleField = () => {
-  const count = 200;
-  const positions = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 30;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 30;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * 30;
-    }
-    return pos;
+const AsteroidBelt = () => {
+  const count = 100;
+  const asteroids = useMemo(() => {
+    return Array.from({ length: count }, (_, i) => ({
+      angle: (i / count) * Math.PI * 2,
+      radius: 15 + Math.random() * 3,
+      size: 0.02 + Math.random() * 0.05,
+      speed: 0.1 + Math.random() * 0.1,
+      yOffset: (Math.random() - 0.5) * 2,
+    }));
   }, []);
 
-  const ref = useRef<THREE.Points>(null);
+  const ref = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     if (ref.current) {
       ref.current.rotation.y = state.clock.elapsedTime * 0.02;
-      ref.current.rotation.x = state.clock.elapsedTime * 0.01;
     }
   });
 
   return (
-    <points ref={ref}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.05}
-        color="#e8915a"
-        transparent
-        opacity={0.8}
-        sizeAttenuation
-      />
-    </points>
+    <group ref={ref}>
+      {asteroids.map((asteroid, i) => (
+        <mesh
+          key={i}
+          position={[
+            Math.cos(asteroid.angle) * asteroid.radius,
+            asteroid.yOffset,
+            Math.sin(asteroid.angle) * asteroid.radius,
+          ]}
+        >
+          <dodecahedronGeometry args={[asteroid.size]} />
+          <meshStandardMaterial color="#8b7355" roughness={1} />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+const ShootingStar = () => {
+  const ref = useRef<THREE.Mesh>(null);
+  const speed = useRef(Math.random() * 2 + 1);
+  const startX = useRef((Math.random() - 0.5) * 40);
+  const startY = useRef(Math.random() * 10 + 5);
+  const startZ = useRef(-20 - Math.random() * 10);
+
+  useFrame((state) => {
+    if (ref.current) {
+      const t = (state.clock.elapsedTime * speed.current) % 5;
+      ref.current.position.x = startX.current + t * 8;
+      ref.current.position.y = startY.current - t * 3;
+      ref.current.position.z = startZ.current;
+      ref.current.scale.setScalar(t < 0.5 ? t * 2 : Math.max(0, 1 - (t - 0.5) * 0.5));
+    }
+  });
+
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[0.03, 8, 8]} />
+      <meshBasicMaterial color="#ffffff" />
+    </mesh>
   );
 };
 
@@ -114,61 +202,103 @@ const Background3D = () => {
   return (
     <div className="fixed inset-0 -z-10">
       <Canvas
-        camera={{ position: [0, 0, 10], fov: 75 }}
-        style={{ background: "transparent" }}
+        camera={{ position: [0, 2, 20], fov: 60 }}
+        style={{ background: "linear-gradient(to bottom, #0a0a0f, #1a1a2e, #0f0f1a)" }}
         gl={{ alpha: true, antialias: true }}
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} color="#e8915a" />
+        <ambientLight intensity={0.2} />
+        <directionalLight position={[10, 10, 5]} intensity={0.8} color="#fff5e6" />
+        <pointLight position={[-15, 5, -10]} intensity={0.5} color="#e8915a" />
+        <pointLight position={[10, -5, 5]} intensity={0.3} color="#4a90d9" />
         
         <Stars
-          radius={50}
-          depth={50}
-          count={1000}
+          radius={100}
+          depth={100}
+          count={3000}
           factor={4}
-          saturation={0}
+          saturation={0.3}
           fade
-          speed={1}
+          speed={0.5}
         />
         
-        <ParticleField />
+        {/* Main large planet - Gas giant with rings (Saturn-like) */}
+        <Planet 
+          position={[-8, 3, -15]} 
+          color="#d4a574" 
+          size={4}
+          speed={0.3}
+          rings={true}
+        />
         
-        <AnimatedSphere 
-          position={[-4, 2, -5]} 
+        {/* Blue ice planet (Neptune-like) */}
+        <Planet 
+          position={[12, -2, -20]} 
+          color="#4a90d9" 
+          size={3}
+          speed={0.4}
+          emissive="#2a5a9a"
+        />
+        
+        {/* Red rocky planet (Mars-like) */}
+        <Planet 
+          position={[6, 5, -12]} 
+          color="#c45c3a" 
+          size={1.5}
+          speed={0.6}
+        />
+        
+        {/* Small purple planet */}
+        <Planet 
+          position={[-5, -3, -8]} 
+          color="#7a5c8a" 
+          size={1}
+          speed={0.8}
+        />
+        
+        {/* Coral accent planet */}
+        <Planet 
+          position={[0, 8, -25]} 
           color="#e8915a" 
-          speed={1} 
-          distort={0.4}
-          scale={2}
-        />
-        <AnimatedSphere 
-          position={[5, -2, -8]} 
-          color="#1f2937" 
-          speed={0.8} 
-          distort={0.3}
-          scale={3}
-        />
-        <AnimatedSphere 
-          position={[0, 4, -10]} 
-          color="#e8915a" 
-          speed={0.6} 
-          distort={0.5}
-          scale={2.5}
-        />
-        <AnimatedSphere 
-          position={[-6, -3, -6]} 
-          color="#374151" 
-          speed={1.2} 
-          distort={0.35}
-          scale={1.5}
+          size={2.5}
+          speed={0.5}
+          emissive="#e8915a"
         />
         
-        <FloatingTorus position={[3, 3, -4]} color="#e8915a" speed={0.5} />
-        <FloatingTorus position={[-5, -1, -7]} color="#1f2937" speed={0.7} />
+        {/* Small green planet */}
+        <Planet 
+          position={[-12, 0, -18]} 
+          color="#5a8a6a" 
+          size={1.8}
+          speed={0.45}
+        />
+        
+        {/* Moons */}
+        <Moon 
+          parentPosition={[-8, 3, -15]} 
+          orbitRadius={6} 
+          size={0.4} 
+          speed={0.5}
+          color="#aaa"
+        />
+        <Moon 
+          parentPosition={[12, -2, -20]} 
+          orbitRadius={5} 
+          size={0.3} 
+          speed={0.7}
+          color="#7ab"
+        />
+        
+        {/* Asteroid belt */}
+        <AsteroidBelt />
+        
+        {/* Shooting stars */}
+        {[...Array(3)].map((_, i) => (
+          <ShootingStar key={i} />
+        ))}
       </Canvas>
       
       {/* Gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background pointer-events-none" />
     </div>
   );
 };
