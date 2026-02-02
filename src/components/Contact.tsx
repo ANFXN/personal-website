@@ -1,7 +1,8 @@
 import { Github, Linkedin, Mail, Twitter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ScrollReveal from "./ScrollReveal";
-import ParallaxSection from "./ParallaxSection";
+import GlassCard from "./GlassCard";
+import { motion } from "framer-motion";
 
 const socialLinks = [
   { icon: Github, label: "GitHub", href: "#" },
@@ -13,58 +14,84 @@ const socialLinks = [
 const Contact = () => {
   return (
     <section id="contact" className="py-32 relative overflow-hidden">
-      <ParallaxSection speed={-0.2}>
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center space-y-12">
-            <ScrollReveal>
-              <div className="space-y-6">
-                <h2 className="text-5xl md:text-7xl font-bold">
-                  Let's Create Something{" "}
-                  <span className="text-gradient">Amazing</span>
-                </h2>
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  I'm always excited to collaborate on new projects and ideas. 
-                  Let's connect and bring your vision to life.
-                </p>
-              </div>
-            </ScrollReveal>
-            
-            <ScrollReveal delay={0.2}>
-              <div className="flex flex-wrap gap-4 justify-center">
-                {socialLinks.map((social, index) => (
-                  <ScrollReveal key={social.label} delay={0.3 + index * 0.1}>
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="gap-2 hover:border-accent hover:text-accent transition-colors"
-                      asChild
-                    >
-                      <a href={social.href} target="_blank" rel="noopener noreferrer">
-                        <social.icon className="w-5 h-5" />
-                        {social.label}
-                      </a>
-                    </Button>
-                  </ScrollReveal>
-                ))}
-              </div>
-            </ScrollReveal>
-            
-            <ScrollReveal delay={0.4}>
-              <div className="pt-8">
+      <div className="container mx-auto px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-12">
+          <ScrollReveal>
+            <div className="space-y-6">
+              <motion.h2 
+                className="text-5xl md:text-7xl font-bold"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                Let's Create Something{" "}
+                <motion.span 
+                  className="text-gradient inline-block"
+                  whileHover={{ scale: 1.1, rotateZ: -3 }}
+                >
+                  Amazing
+                </motion.span>
+              </motion.h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                I'm always excited to collaborate on new projects and ideas. 
+                Let's connect and bring your vision to life.
+              </p>
+            </div>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.2}>
+            <div className="flex flex-wrap gap-4 justify-center">
+              {socialLinks.map((social, index) => (
+                <motion.div
+                  key={social.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1 }}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="gap-2 backdrop-blur-sm bg-background/30 border-white/20 hover:border-accent hover:text-accent hover:bg-accent/10 transition-all"
+                    asChild
+                  >
+                    <a href={social.href} target="_blank" rel="noopener noreferrer">
+                      <social.icon className="w-5 h-5" />
+                      {social.label}
+                    </a>
+                  </Button>
+                </motion.div>
+              ))}
+            </div>
+          </ScrollReveal>
+          
+          <ScrollReveal delay={0.4}>
+            <GlassCard className="p-8 max-w-lg mx-auto" hover3D={false}>
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 300 }}
+              >
                 <Button 
                   size="lg"
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 font-medium text-lg px-8"
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-medium text-lg py-6 shadow-lg shadow-accent/30"
                 >
                   Download Resume
                 </Button>
-              </div>
-            </ScrollReveal>
-          </div>
+              </motion.div>
+            </GlassCard>
+          </ScrollReveal>
         </div>
-      </ParallaxSection>
+      </div>
       
-      <footer className="mt-32 pt-8 border-t text-center text-muted-foreground">
-        <p>© 2024 All rights reserved. Built with passion and precision.</p>
+      <footer className="mt-32 pt-8 border-t border-white/10 text-center text-muted-foreground">
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          © 2024 All rights reserved. Built with passion and precision.
+        </motion.p>
       </footer>
     </section>
   );
