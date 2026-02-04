@@ -1,14 +1,174 @@
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Sphere, Stars, Ring, Cone } from "@react-three/drei";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
+import { Float, Sphere, Stars, Ring } from "@react-three/drei";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
+
+const Planet = ({ 
+  position, 
+  color, 
+  size, 
+  speed, 
+  rings,
+  emissive,
+  orbitRadius,
+  orbitSpeed
+}: { 
+  position: [number, number, number]; 
+  color: string;
+  size: number;
+  speed: number;
+  rings?: boolean;
+  emissive?: string;
+  orbitRadius?: number;
+  orbitSpeed?: number;
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
+  
+  // Create procedural texture for planet surface
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Create gradient base
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, new THREE.Color(color).multiplyScalar(0.6).getStyle());
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
+    
+    // Add noise/texture
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.random() * 256;
+      const y = Math.random() * 256;
+      const alpha = Math.random() * 0.3;
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    
+    // Add horizontal bands (for gas giants look)
+    for (let i = 0; i < 8; i++) {
+      const y = (i / 8) * 256;
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.15})`;
+      ctx.fillRect(0, y, 256, 10 + Math.random() * 20);
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+  }, [color]);
+
+  useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    
+    if (meshRef.current) {
+      // Rotate the planet
+      meshRef.current.rotation.y += speed * 0.005;
+      meshRef.current.rotation.x = Math.sin(time * speed * 0.1) * 0.1;
+    }
+    
+    if (groupRef.current) {
+      // Orbital motion if specified
+      if (orbitRadius && orbitSpeed) {
+        groupRef.current.position.x = position[0] + Math.cos(time * orbitSpeed) * orbitRadius;
+        groupRef.current.position.z = position[2] + Math.sin(time * orbitSpeed) * orbitRadius;
+      }
+      
+      // Enhanced floating motion
+      groupRef.current.position.y = position[1] + Math.sin(time * speed * 0.5) * 0.8;
+      
+      // Subtle scale pulsing
+      const pulse = 1 + Math.sin(time * speed * 0.3) * 0.02;
+      groupRef.current.scale.setScalar(pulse);
+    }
+    
+    if (ringRef.current) {
+      ringRef.current.rotation.z = 0.5 + Math.sin(time * 0.2) * 0.1;
+      ringRef.current.rotation.x = 1.2 + Math.cos(time * 0.15) * 0.05;
+    }
+    
+    // Pulsing emissive glow
+    if (materialRef.current && emissive) {
+      materialRef.current.emissiveIntensity = 0.05 + Math.sin(time * speed) * 0.03;
+    }
+  });
+
+  return (
+    <Float speed={speed * 0.5} rotationIntensity={0.3} floatIntensity={0.8}>
+      <group ref={groupRef} position={position}>
+        <Sphere ref={meshRef} args={[size, 64, 64]}>
+          <meshStandardMaterial
+            ref={materialRef}
+            map={texture}
+            roughness={0.8}
+            metalness={0.1}
+            emissive={emissive || color}
+            emissiveIntensity={0.05}
+          />
+        </Sphere>
+        {rings && (
+          <Ring ref={ringRef} args={[size * 1.4, size * 2, 64]}>
+            <meshStandardMaterial
+              color="#d4a574"
+              transparent
+              opacity={0.6}
+              side={THREE.DoubleSide}
+              roughness={0.9}
+            />
+          </Ring>
+        )}
+      </group>
+    </Float>
+  );
+};
+
+const Moon = ({ 
+  parentPosition, 
+  orbitRadius, 
+  size, 
+  speed, 
+  color 
+}: { 
+  parentPosition: [number, number, number];
+  orbitRadius: number;
+  size: number;
+  speed: number;
+  color: string;
+}) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      const angle = state.clock.elapsedTime * speed;
+      meshRef.current.position.x = parentPosition[0] + Math.cos(angle) * orbitRadius;
+      meshRef.current.position.z = parentPosition[2] + Math.sin(angle) * orbitRadius;
+      meshRef.current.position.y = parentPosition[1] + Math.sin(angle * 0.5) * 0.5;
+      meshRef.current.rotation.y += 0.01;
+    }
+  });
+
+  return (
+    <Sphere ref={meshRef} args={[size, 32, 32]}>
+      <meshStandardMaterial
+        color={color}
+        roughness={0.9}
+        metalness={0.1}
+      />
+    </Sphere>
+  );
+};
 
 const AsteroidBelt = () => {
   const count = 100;
   const asteroids = useMemo(() => {
     return Array.from({ length: count }, (_, i) => ({
       angle: (i / count) * Math.PI * 2,
-      radius: 22 + Math.random() * 4,
+      radius: 15 + Math.random() * 3,
       size: 0.02 + Math.random() * 0.05,
       speed: 0.1 + Math.random() * 0.1,
       yOffset: (Math.random() - 0.5) * 2,
@@ -24,7 +184,7 @@ const AsteroidBelt = () => {
   });
 
   return (
-    <group ref={ref} position={[0, 0, -8]}>
+    <group ref={ref}>
       {asteroids.map((asteroid, i) => (
         <mesh
           key={i}
@@ -41,7 +201,6 @@ const AsteroidBelt = () => {
     </group>
   );
 };
-
 
 const ShootingStar = () => {
   const ref = useRef<THREE.Mesh>(null);
@@ -68,249 +227,6 @@ const ShootingStar = () => {
   );
 };
 
-// Floating Island centerpiece
-const FloatingIsland = () => {
-  const groupRef = useRef<THREE.Group>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-  
-  // Generate rocks for the island base
-  const rocks = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      position: [
-        (Math.random() - 0.5) * 3,
-        -1.5 - Math.random() * 2,
-        (Math.random() - 0.5) * 3
-      ] as [number, number, number],
-      scale: 0.3 + Math.random() * 0.5,
-      rotation: Math.random() * Math.PI * 2
-    }));
-  }, []);
-  
-  // Generate crystals on the island
-  const crystals = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => ({
-      position: [
-        (Math.random() - 0.5) * 1.5,
-        1 + Math.random() * 0.5,
-        (Math.random() - 0.5) * 1.5
-      ] as [number, number, number],
-      scale: 0.2 + Math.random() * 0.3,
-      rotation: Math.random() * Math.PI * 2,
-      color: ['#e8915a', '#d4a574', '#4a90d9'][Math.floor(Math.random() * 3)]
-    }));
-  }, []);
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    
-    if (groupRef.current) {
-      // Gentle floating motion
-      groupRef.current.position.y = Math.sin(time * 0.3) * 0.3;
-      groupRef.current.rotation.y = time * 0.02;
-    }
-    
-    if (glowRef.current) {
-      // Pulsing glow
-      const material = glowRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.3 + Math.sin(time * 0.5) * 0.1;
-    }
-  });
-
-  return (
-    <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.3}>
-      <group ref={groupRef} position={[0, 0, -8]}>
-        {/* Main island base - rocky terrain */}
-        <mesh position={[0, 0, 0]}>
-          <cylinderGeometry args={[2.5, 1.5, 1.5, 8, 1]} />
-          <meshStandardMaterial 
-            color="#3a3535" 
-            roughness={0.9}
-            metalness={0.1}
-          />
-        </mesh>
-        
-        {/* Grass/terrain top */}
-        <mesh position={[0, 0.8, 0]}>
-          <cylinderGeometry args={[2.5, 2.5, 0.3, 12]} />
-          <meshStandardMaterial 
-            color="#2a4a3a" 
-            roughness={0.8}
-          />
-        </mesh>
-        
-        {/* Mountain peak */}
-        <Cone args={[1.2, 3, 6]} position={[0, 2.5, 0]}>
-          <meshStandardMaterial 
-            color="#4a4545" 
-            roughness={0.85}
-            metalness={0.1}
-          />
-        </Cone>
-        
-        {/* Snow cap */}
-        <Cone args={[0.5, 0.8, 6]} position={[0, 3.8, 0]}>
-          <meshStandardMaterial 
-            color="#e8e4e0" 
-            roughness={0.6}
-            emissive="#ffffff"
-            emissiveIntensity={0.1}
-          />
-        </Cone>
-        
-        {/* Hanging rocks underneath */}
-        {rocks.map((rock, i) => (
-          <mesh key={i} position={rock.position} rotation={[0, rock.rotation, 0]}>
-            <dodecahedronGeometry args={[rock.scale]} />
-            <meshStandardMaterial color="#3a3535" roughness={1} />
-          </mesh>
-        ))}
-        
-        {/* Glowing crystals */}
-        {crystals.map((crystal, i) => (
-          <mesh key={i} position={crystal.position} rotation={[0, crystal.rotation, Math.PI * 0.1]}>
-            <octahedronGeometry args={[crystal.scale]} />
-            <meshStandardMaterial 
-              color={crystal.color}
-              emissive={crystal.color}
-              emissiveIntensity={0.5}
-              transparent
-              opacity={0.9}
-            />
-          </mesh>
-        ))}
-        
-        {/* Ambient glow underneath */}
-        <mesh ref={glowRef} position={[0, -2, 0]}>
-          <sphereGeometry args={[2, 16, 16]} />
-          <meshBasicMaterial 
-            color="#e8915a" 
-            transparent 
-            opacity={0.3}
-            side={THREE.BackSide}
-          />
-        </mesh>
-        
-        {/* Energy ring around island */}
-        <Ring args={[3.5, 3.8, 32]} rotation={[Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-          <meshBasicMaterial 
-            color="#e8915a" 
-            transparent 
-            opacity={0.4}
-            side={THREE.DoubleSide}
-          />
-        </Ring>
-      </group>
-    </Float>
-  );
-};
-
-// Orbiting planet that circles the floating island
-const OrbitingPlanet = ({ 
-  orbitRadius, 
-  orbitSpeed, 
-  startAngle,
-  color, 
-  size, 
-  rotationSpeed,
-  rings,
-  emissive,
-  yOffset = 0
-}: { 
-  orbitRadius: number;
-  orbitSpeed: number;
-  startAngle: number;
-  color: string;
-  size: number;
-  rotationSpeed: number;
-  rings?: boolean;
-  emissive?: string;
-  yOffset?: number;
-}) => {
-  const groupRef = useRef<THREE.Group>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const ringRef = useRef<THREE.Mesh>(null);
-  
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d')!;
-    
-    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gradient.addColorStop(0, color);
-    gradient.addColorStop(1, new THREE.Color(color).multiplyScalar(0.6).getStyle());
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 256);
-    
-    for (let i = 0; i < 2000; i++) {
-      const x = Math.random() * 256;
-      const y = Math.random() * 256;
-      const alpha = Math.random() * 0.3;
-      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-      ctx.fillRect(x, y, 2, 2);
-    }
-    
-    for (let i = 0; i < 8; i++) {
-      const y = (i / 8) * 256;
-      ctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.15})`;
-      ctx.fillRect(0, y, 256, 10 + Math.random() * 20);
-    }
-    
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    return texture;
-  }, [color]);
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    const angle = startAngle + time * orbitSpeed;
-    
-    if (groupRef.current) {
-      // Orbit around center (where floating island is)
-      groupRef.current.position.x = Math.cos(angle) * orbitRadius;
-      groupRef.current.position.z = -8 + Math.sin(angle) * orbitRadius;
-      groupRef.current.position.y = yOffset + Math.sin(time * 0.5 + startAngle) * 0.5;
-    }
-    
-    if (meshRef.current) {
-      meshRef.current.rotation.y += rotationSpeed * 0.005;
-    }
-    
-    if (ringRef.current) {
-      ringRef.current.rotation.z = 0.5 + Math.sin(time * 0.2) * 0.1;
-      ringRef.current.rotation.x = 1.2;
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      <Float speed={0.3} rotationIntensity={0.1} floatIntensity={0.2}>
-        <Sphere ref={meshRef} args={[size, 64, 64]}>
-          <meshStandardMaterial
-            map={texture}
-            roughness={0.8}
-            metalness={0.1}
-            emissive={emissive || color}
-            emissiveIntensity={0.05}
-          />
-        </Sphere>
-        {rings && (
-          <Ring ref={ringRef} args={[size * 1.4, size * 2, 64]}>
-            <meshStandardMaterial
-              color="#d4a574"
-              transparent
-              opacity={0.6}
-              side={THREE.DoubleSide}
-              roughness={0.9}
-            />
-          </Ring>
-        )}
-      </Float>
-    </group>
-  );
-};
-
 const Background3D = () => {
   return (
     <div className="fixed inset-0 -z-10">
@@ -319,11 +235,10 @@ const Background3D = () => {
         style={{ background: "linear-gradient(to bottom, #0a0a0f, #1a1a2e, #0f0f1a)" }}
         gl={{ alpha: true, antialias: true }}
       >
-        <ambientLight intensity={0.25} />
-        <directionalLight position={[10, 10, 5]} intensity={0.9} color="#fff5e6" />
-        <pointLight position={[-15, 5, -10]} intensity={0.6} color="#e8915a" />
-        <pointLight position={[10, -5, 5]} intensity={0.4} color="#4a90d9" />
-        <pointLight position={[0, -3, -8]} intensity={0.5} color="#e8915a" />
+        <ambientLight intensity={0.2} />
+        <directionalLight position={[10, 10, 5]} intensity={0.8} color="#fff5e6" />
+        <pointLight position={[-15, 5, -10]} intensity={0.5} color="#e8915a" />
+        <pointLight position={[10, -5, 5]} intensity={0.3} color="#4a90d9" />
         
         <Stars
           radius={100}
@@ -335,74 +250,86 @@ const Background3D = () => {
           speed={0.5}
         />
         
-        {/* Central Floating Island */}
-        <FloatingIsland />
-        
-        {/* Planets orbiting the floating island */}
-        <OrbitingPlanet 
-          orbitRadius={12}
-          orbitSpeed={0.08}
-          startAngle={0}
+        {/* Main large planet - Gas giant with rings (Saturn-like) */}
+        <Planet 
+          position={[-8, 3, -15]} 
           color="#d4a574" 
-          size={2.5}
-          rotationSpeed={0.4}
+          size={4}
+          speed={0.4}
           rings={true}
-          yOffset={2}
+          orbitRadius={2}
+          orbitSpeed={0.1}
         />
         
-        <OrbitingPlanet 
-          orbitRadius={16}
-          orbitSpeed={0.05}
-          startAngle={Math.PI * 0.6}
+        {/* Blue ice planet (Neptune-like) */}
+        <Planet 
+          position={[12, -2, -20]} 
           color="#4a90d9" 
-          size={2}
-          rotationSpeed={0.5}
+          size={3}
+          speed={0.5}
           emissive="#2a5a9a"
-          yOffset={-1}
+          orbitRadius={3}
+          orbitSpeed={0.15}
         />
         
-        <OrbitingPlanet 
-          orbitRadius={9}
-          orbitSpeed={0.12}
-          startAngle={Math.PI * 1.2}
+        {/* Red rocky planet (Mars-like) */}
+        <Planet 
+          position={[6, 5, -12]} 
           color="#c45c3a" 
-          size={1.2}
-          rotationSpeed={0.8}
-          yOffset={3}
-        />
-        
-        <OrbitingPlanet 
-          orbitRadius={20}
-          orbitSpeed={0.04}
-          startAngle={Math.PI * 0.3}
-          color="#7a5c8a" 
-          size={1.8}
-          rotationSpeed={0.6}
-          yOffset={-2}
-        />
-        
-        <OrbitingPlanet 
-          orbitRadius={14}
-          orbitSpeed={0.07}
-          startAngle={Math.PI * 1.5}
-          color="#e8915a" 
           size={1.5}
-          rotationSpeed={0.7}
+          speed={0.8}
+          orbitRadius={1.5}
+          orbitSpeed={0.25}
+        />
+        
+        {/* Small purple planet */}
+        <Planet 
+          position={[-5, -3, -8]} 
+          color="#7a5c8a" 
+          size={1}
+          speed={1.0}
+          orbitRadius={1}
+          orbitSpeed={0.3}
+        />
+        
+        {/* Coral accent planet */}
+        <Planet 
+          position={[0, 8, -25]} 
+          color="#e8915a" 
+          size={2.5}
+          speed={0.6}
           emissive="#e8915a"
-          yOffset={4}
+          orbitRadius={2.5}
+          orbitSpeed={0.12}
         />
         
-        <OrbitingPlanet 
-          orbitRadius={18}
-          orbitSpeed={0.06}
-          startAngle={Math.PI * 0.9}
+        {/* Small green planet */}
+        <Planet 
+          position={[-12, 0, -18]} 
           color="#5a8a6a" 
-          size={1.3}
-          rotationSpeed={0.55}
-          yOffset={0}
+          size={1.8}
+          speed={0.55}
+          orbitRadius={2}
+          orbitSpeed={0.18}
         />
         
-        {/* Asteroid belt around everything */}
+        {/* Moons */}
+        <Moon 
+          parentPosition={[-8, 3, -15]} 
+          orbitRadius={6} 
+          size={0.4} 
+          speed={0.5}
+          color="#aaa"
+        />
+        <Moon 
+          parentPosition={[12, -2, -20]} 
+          orbitRadius={5} 
+          size={0.3} 
+          speed={0.7}
+          color="#7ab"
+        />
+        
+        {/* Asteroid belt */}
         <AsteroidBelt />
         
         {/* Shooting stars */}
