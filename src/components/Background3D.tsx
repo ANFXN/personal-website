@@ -10,7 +10,8 @@ const Planet = ({
   speed, 
   rings,
   emissive,
-  bumpScale = 0.02
+  orbitRadius,
+  orbitSpeed
 }: { 
   position: [number, number, number]; 
   color: string;
@@ -18,10 +19,13 @@ const Planet = ({
   speed: number;
   rings?: boolean;
   emissive?: string;
-  bumpScale?: number;
+  orbitRadius?: number;
+  orbitSpeed?: number;
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const materialRef = useRef<THREE.MeshStandardMaterial>(null);
   
   // Create procedural texture for planet surface
   const texture = useMemo(() => {
@@ -60,21 +64,46 @@ const Planet = ({
   }, [color]);
 
   useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    
     if (meshRef.current) {
-      meshRef.current.rotation.y += speed * 0.002;
-      meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * speed * 0.3) * 0.3;
+      // Rotate the planet
+      meshRef.current.rotation.y += speed * 0.005;
+      meshRef.current.rotation.x = Math.sin(time * speed * 0.1) * 0.1;
     }
+    
+    if (groupRef.current) {
+      // Orbital motion if specified
+      if (orbitRadius && orbitSpeed) {
+        groupRef.current.position.x = position[0] + Math.cos(time * orbitSpeed) * orbitRadius;
+        groupRef.current.position.z = position[2] + Math.sin(time * orbitSpeed) * orbitRadius;
+      }
+      
+      // Enhanced floating motion
+      groupRef.current.position.y = position[1] + Math.sin(time * speed * 0.5) * 0.8;
+      
+      // Subtle scale pulsing
+      const pulse = 1 + Math.sin(time * speed * 0.3) * 0.02;
+      groupRef.current.scale.setScalar(pulse);
+    }
+    
     if (ringRef.current) {
-      ringRef.current.rotation.z = 0.5;
-      ringRef.current.rotation.x = 1.2;
+      ringRef.current.rotation.z = 0.5 + Math.sin(time * 0.2) * 0.1;
+      ringRef.current.rotation.x = 1.2 + Math.cos(time * 0.15) * 0.05;
+    }
+    
+    // Pulsing emissive glow
+    if (materialRef.current && emissive) {
+      materialRef.current.emissiveIntensity = 0.05 + Math.sin(time * speed) * 0.03;
     }
   });
 
   return (
-    <Float speed={speed * 0.3} rotationIntensity={0.2} floatIntensity={0.5}>
-      <group position={position}>
+    <Float speed={speed * 0.5} rotationIntensity={0.3} floatIntensity={0.8}>
+      <group ref={groupRef} position={position}>
         <Sphere ref={meshRef} args={[size, 64, 64]}>
           <meshStandardMaterial
+            ref={materialRef}
             map={texture}
             roughness={0.8}
             metalness={0.1}
@@ -226,8 +255,10 @@ const Background3D = () => {
           position={[-8, 3, -15]} 
           color="#d4a574" 
           size={4}
-          speed={0.3}
+          speed={0.4}
           rings={true}
+          orbitRadius={2}
+          orbitSpeed={0.1}
         />
         
         {/* Blue ice planet (Neptune-like) */}
@@ -235,8 +266,10 @@ const Background3D = () => {
           position={[12, -2, -20]} 
           color="#4a90d9" 
           size={3}
-          speed={0.4}
+          speed={0.5}
           emissive="#2a5a9a"
+          orbitRadius={3}
+          orbitSpeed={0.15}
         />
         
         {/* Red rocky planet (Mars-like) */}
@@ -244,7 +277,9 @@ const Background3D = () => {
           position={[6, 5, -12]} 
           color="#c45c3a" 
           size={1.5}
-          speed={0.6}
+          speed={0.8}
+          orbitRadius={1.5}
+          orbitSpeed={0.25}
         />
         
         {/* Small purple planet */}
@@ -252,7 +287,9 @@ const Background3D = () => {
           position={[-5, -3, -8]} 
           color="#7a5c8a" 
           size={1}
-          speed={0.8}
+          speed={1.0}
+          orbitRadius={1}
+          orbitSpeed={0.3}
         />
         
         {/* Coral accent planet */}
@@ -260,8 +297,10 @@ const Background3D = () => {
           position={[0, 8, -25]} 
           color="#e8915a" 
           size={2.5}
-          speed={0.5}
+          speed={0.6}
           emissive="#e8915a"
+          orbitRadius={2.5}
+          orbitSpeed={0.12}
         />
         
         {/* Small green planet */}
@@ -269,7 +308,9 @@ const Background3D = () => {
           position={[-12, 0, -18]} 
           color="#5a8a6a" 
           size={1.8}
-          speed={0.45}
+          speed={0.55}
+          orbitRadius={2}
+          orbitSpeed={0.18}
         />
         
         {/* Moons */}
