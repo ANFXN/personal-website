@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Sphere, Stars, Ring, Cone } from "@react-three/drei";
+import { Float, Sphere, Stars, Ring } from "@react-three/drei";
 import { useRef, useMemo } from "react";
 import * as THREE from "three";
 
@@ -65,142 +65,6 @@ const ShootingStar = () => {
       <sphereGeometry args={[0.03, 8, 8]} />
       <meshBasicMaterial color="#ffffff" />
     </mesh>
-  );
-};
-
-// Floating Island centerpiece
-const FloatingIsland = () => {
-  const groupRef = useRef<THREE.Group>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-  
-  // Generate rocks for the island base
-  const rocks = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      position: [
-        (Math.random() - 0.5) * 3,
-        -1.5 - Math.random() * 2,
-        (Math.random() - 0.5) * 3
-      ] as [number, number, number],
-      scale: 0.3 + Math.random() * 0.5,
-      rotation: Math.random() * Math.PI * 2
-    }));
-  }, []);
-  
-  // Generate crystals on the island
-  const crystals = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => ({
-      position: [
-        (Math.random() - 0.5) * 1.5,
-        1 + Math.random() * 0.5,
-        (Math.random() - 0.5) * 1.5
-      ] as [number, number, number],
-      scale: 0.2 + Math.random() * 0.3,
-      rotation: Math.random() * Math.PI * 2,
-      color: ['#e8915a', '#d4a574', '#4a90d9'][Math.floor(Math.random() * 3)]
-    }));
-  }, []);
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-    
-    if (groupRef.current) {
-      // Gentle floating motion
-      groupRef.current.position.y = Math.sin(time * 0.3) * 0.3;
-      groupRef.current.rotation.y = time * 0.02;
-    }
-    
-    if (glowRef.current) {
-      // Pulsing glow
-      const material = glowRef.current.material as THREE.MeshBasicMaterial;
-      material.opacity = 0.3 + Math.sin(time * 0.5) * 0.1;
-    }
-  });
-
-  return (
-    <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.3}>
-      <group ref={groupRef} position={[0, 0, -8]}>
-        {/* Main island base - rocky terrain */}
-        <mesh position={[0, 0, 0]}>
-          <cylinderGeometry args={[2.5, 1.5, 1.5, 8, 1]} />
-          <meshStandardMaterial 
-            color="#3a3535" 
-            roughness={0.9}
-            metalness={0.1}
-          />
-        </mesh>
-        
-        {/* Grass/terrain top */}
-        <mesh position={[0, 0.8, 0]}>
-          <cylinderGeometry args={[2.5, 2.5, 0.3, 12]} />
-          <meshStandardMaterial 
-            color="#2a4a3a" 
-            roughness={0.8}
-          />
-        </mesh>
-        
-        {/* Mountain peak */}
-        <Cone args={[1.2, 3, 6]} position={[0, 2.5, 0]}>
-          <meshStandardMaterial 
-            color="#4a4545" 
-            roughness={0.85}
-            metalness={0.1}
-          />
-        </Cone>
-        
-        {/* Snow cap */}
-        <Cone args={[0.5, 0.8, 6]} position={[0, 3.8, 0]}>
-          <meshStandardMaterial 
-            color="#e8e4e0" 
-            roughness={0.6}
-            emissive="#ffffff"
-            emissiveIntensity={0.1}
-          />
-        </Cone>
-        
-        {/* Hanging rocks underneath */}
-        {rocks.map((rock, i) => (
-          <mesh key={i} position={rock.position} rotation={[0, rock.rotation, 0]}>
-            <dodecahedronGeometry args={[rock.scale]} />
-            <meshStandardMaterial color="#3a3535" roughness={1} />
-          </mesh>
-        ))}
-        
-        {/* Glowing crystals */}
-        {crystals.map((crystal, i) => (
-          <mesh key={i} position={crystal.position} rotation={[0, crystal.rotation, Math.PI * 0.1]}>
-            <octahedronGeometry args={[crystal.scale]} />
-            <meshStandardMaterial 
-              color={crystal.color}
-              emissive={crystal.color}
-              emissiveIntensity={0.5}
-              transparent
-              opacity={0.9}
-            />
-          </mesh>
-        ))}
-        
-        {/* Ambient glow underneath */}
-        <mesh ref={glowRef} position={[0, -2, 0]}>
-          <sphereGeometry args={[2, 16, 16]} />
-          <meshBasicMaterial 
-            color="#e8915a" 
-            transparent 
-            opacity={0.3}
-            side={THREE.BackSide}
-          />
-        </mesh>
-        
-        {/* Energy ring around island */}
-        <Ring args={[3.5, 3.8, 32]} rotation={[Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-          <meshBasicMaterial 
-            color="#e8915a" 
-            transparent 
-            opacity={0.4}
-            side={THREE.DoubleSide}
-          />
-        </Ring>
-      </group>
-    </Float>
   );
 };
 
@@ -335,8 +199,6 @@ const Background3D = () => {
           speed={0.5}
         />
         
-        {/* Central Floating Island */}
-        <FloatingIsland />
         
         {/* Planets orbiting the floating island */}
         <OrbitingPlanet 
