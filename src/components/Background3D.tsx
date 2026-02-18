@@ -227,6 +227,17 @@ const ShootingStar = () => {
   );
 };
 
+const CameraOrbit = () => {
+  useFrame((state) => {
+    const t = state.clock.elapsedTime * 0.05;
+    state.camera.position.x = Math.sin(t) * 20;
+    state.camera.position.z = Math.cos(t) * 20;
+    state.camera.position.y = 2 + Math.sin(t * 0.5) * 3;
+    state.camera.lookAt(0, 0, -10);
+  });
+  return null;
+};
+
 const Background3D = () => {
   return (
     <div className="fixed inset-0 -z-10">
@@ -235,6 +246,7 @@ const Background3D = () => {
         style={{ background: "linear-gradient(to bottom, #0a0a0f, #1a1a2e, #0f0f1a)" }}
         gl={{ alpha: true, antialias: true }}
       >
+        <CameraOrbit />
         <ambientLight intensity={0.2} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} color="#fff5e6" />
         <pointLight position={[-15, 5, -10]} intensity={0.5} color="#e8915a" />
