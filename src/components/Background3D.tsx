@@ -352,7 +352,7 @@ const Background3D = () => {
       </Canvas>
       
       {/* Gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-black/30 pointer-events-none" />
     </div>
   );
 };
