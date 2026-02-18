@@ -238,6 +238,56 @@ const CameraOrbit = () => {
   return null;
 };
 
+const Nebula = ({ position, color, scale }: { position: [number, number, number]; color: string; scale: number }) => {
+  const ref = useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>>(null);
+  
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Radial gradient nebula cloud
+    const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(0.3, color + '88');
+    gradient.addColorStop(0.6, color + '33');
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add cloudy noise
+    for (let i = 0; i < 3000; i++) {
+      const x = 256 + (Math.random() - 0.5) * 400;
+      const y = 256 + (Math.random() - 0.5) * 400;
+      const dist = Math.sqrt((x - 256) ** 2 + (y - 256) ** 2);
+      if (dist > 240) continue;
+      const alpha = Math.random() * 0.4 * (1 - dist / 240);
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(x, y, Math.random() * 8 + 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    const tex = new THREE.CanvasTexture(canvas);
+    return tex;
+  }, [color]);
+
+  useFrame((state) => {
+    if (ref.current) {
+      ref.current.rotation.z += 0.001;
+      ref.current.material.opacity = 0.25 + Math.sin(state.clock.elapsedTime * 0.15) * 0.08;
+    }
+  });
+
+  return (
+    <mesh ref={ref} position={position}>
+      <planeGeometry args={[scale, scale]} />
+      <meshBasicMaterial map={texture} transparent opacity={0.3} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
+    </mesh>
+  );
+};
+
 const Background3D = () => {
   return (
     <div className="fixed inset-0 -z-10">
@@ -251,7 +301,13 @@ const Background3D = () => {
         <directionalLight position={[10, 10, 5]} intensity={0.8} color="#fff5e6" />
         <pointLight position={[-15, 5, -10]} intensity={0.5} color="#e8915a" />
         <pointLight position={[10, -5, 5]} intensity={0.3} color="#4a90d9" />
-        
+
+        {/* Nebula clouds */}
+        <Nebula position={[-25, 10, -50]} color="#e8915a" scale={40} />
+        <Nebula position={[30, -5, -60]} color="#4a90d9" scale={50} />
+        <Nebula position={[0, 15, -70]} color="#9b59b6" scale={45} />
+        <Nebula position={[-15, -10, -55]} color="#2ecc71" scale={35} />
+
         <Stars
           radius={100}
           depth={100}
